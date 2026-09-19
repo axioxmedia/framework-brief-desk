@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" href="/brand/logo.png" type="image/png" />
+  <title>Framework Brief Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body class="aio-app axiox-shell">
+  <div class="bg-grid"></div>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark"><img src="/brand/logo.png" alt="A|O" /></div>
+        <div>
+          <h1 id="appTitle">框架策划台</h1>
+          <p id="appSubtitle">逐步写成游戏框架或投资计划，并按步导出</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div class="chip" id="saveChip">—</div>
+        <button class="soft" type="button" id="btnNew">新建</button>
+        <button class="soft" type="button" id="btnOpen">打开已存</button>
+        <div class="lang-switch" id="uiLangSwitch">
+          <button type="button" data-ui-lang="zh">中文</button>
+          <button type="button" data-ui-lang="en">EN</button>
+        </div>
+      </div>
+    </header>
+    <nav class="steps" id="stepNav"></nav>
+    <section class="workspace">
+      <article class="wizard-card on" id="stageCard">
+        <div class="kicker" id="cardKicker">STEP 01</div>
+        <h2 id="cardTitle"></h2>
+        <p class="lead" id="cardLead"></p>
+        <div class="sub-rail" id="subRail" hidden></div>
+        <div class="form-scroll" id="formMount"></div>
+        <p class="alert" id="cardAlert"></p>
+        <div class="actions">
+          <button class="ghost" type="button" id="btnBack">上一步</button>
+          <button class="primary" type="button" id="btnNext">下一步</button>
+          <button class="soft" type="button" id="btnPreset" hidden>套用品类预设</button>
+          <button class="soft" type="button" id="btnImport" hidden>导入 JSON</button>
+          <div class="export-row">
+            <button class="soft" type="button" data-export="step-json">导出本步 JSON</button>
+            <button class="soft" type="button" data-export="step-docx">导出本步 DOCX</button>
+            <button class="soft" type="button" data-export="step-pdf">导出本步 PDF</button>
+            <button class="gold" type="button" data-export="full-json" hidden id="fullJson">整份 JSON</button>
+            <button class="gold" type="button" data-export="full-docx" hidden id="fullDocx">整份 DOCX</button>
+            <button class="gold" type="button" data-export="full-pdf" hidden id="fullPdf">整份 PDF</button>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+  <div class="app-version" id="appVersion">v1.0.0</div>
+  <div class="overlay" id="loading"><div class="overlay-box" id="loadingText">…</div></div>
+  <div class="modal" id="openModal">
+    <div class="modal-box">
+      <div class="kicker">PROJECTS</div>
+      <h2 id="openTitle">打开已存</h2>
+      <div id="projList"></div>
+      <div class="actions"><button class="ghost" type="button" id="closeOpen">关闭</button></div>
+    </div>
+  </div>
+  <div class="modal" id="addOptModal">
+    <div class="modal-box">
+      <div class="kicker">OPTION</div>
+      <h2 id="addOptTitle">添加品类</h2>
+      <p class="lead" id="addOptLead"></p>
+      <input type="text" id="addOptInput" />
+      <p class="alert" id="addOptAlert"></p>
+      <div class="actions">
+        <button class="gold" type="button" id="addOptOk">添加</button>
+        <button class="ghost" type="button" id="addOptCancel">取消</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal" id="importModal">
+    <div class="modal-box">
+      <div class="kicker">JSON</div>
+      <h2 id="importTitle">导入指定类型的 JSON</h2>
+      <p class="lead" id="importLead"></p>
+      <p class="import-error" id="importError" hidden></p>
+      <input type="file" id="importFile" accept="application/json,.json" hidden />
+      <div class="actions">
+        <button class="gold" type="button" id="importPick">选择文件</button>
+        <button class="ghost" type="button" id="importClose">关闭</button>
+      </div>
+    </div>
+  </div>
+  <script src="/assets/app.js"></script>
+</body>
+</html>
