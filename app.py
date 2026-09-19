@@ -299,15 +299,17 @@ def apply_preset(pid: str, body: PresetBody) -> dict:
     return doc
 
 
-@app.post("/api/export")
-def export_project(body: ExportBody) -> dict:
+def _build_export(body: ExportBody) -> tuple[bytes, str, str]:
     doc = _load(body.id)
     lang = "zh" if body.lang != "en" else "en"
-    ext = body.format
-    token = uuid.uuid4().hex[:12]
-    _ensure_dirs()
+    ext = body.format if body.format in ("json", "docx", "pdf") else "json"
     if ext == "json":
-        payload = to_json_bytes(doc if body.scope == "full" else {"id": doc["id"], "step": body.step, "sub": body.sub, "data": doc.get("data")})
+        if body.scope == "full":
+            payload = to_json_bytes(doc)
+        else:
+            payload = to_json_bytes(
+                {"id": doc["id"], "step": body.step, "sub": body.sub, "data": doc.get("data")}
+            )
         mime = "application/json"
     elif ext == "docx":
         payload = to_docx_bytes(doc, body.scope, body.step or None, body.sub or None, lang)
@@ -316,29 +318,60 @@ def export_project(body: ExportBody) -> dict:
         payload = to_pdf_bytes(doc, body.scope, body.step or None, body.sub or None, lang)
         mime = "application/pdf"
     name = (doc.get("data") or {}).get("projectName") or PRODUCT_EN
-    safe = "".join(ch for ch in name if ch.isalnum() or ch in "-_ ")[:40].strip() or "brief"
+    safe = "".join(ch for ch in str(name) if ch.isalnum() or ch in "-_ ")[:40].strip() or "brief"
     filename = f"{safe}-{body.scope}-{body.step or 'all'}.{ext}"
-    dest = EXPORTS / f"{token}.{ext}"
-    dest.write_bytes(payload)
-    meta = EXPORTS / f"{token}.json"
-    meta.write_text(json.dumps({"filename": filename, "mime": mime}, ensure_ascii=False), encoding="utf-8")
-    return {"token": token, "filename": filename, "url": f"/api/export/file/{token}"}
+    return payload, mime, filename
+
+
+def _store_export_blob(token: str, payload: bytes, mime: str, filename: str) -> None:
+    _ensure_dirs()
+    (EXPORTS / f"{token}.bin").write_bytes(payload)
+    (EXPORTS / f"{token}.meta.json").write_text(
+        json.dumps({"filename": filename, "mime": mime}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+
+@app.post("/api/export")
+def export_project(body: ExportBody) -> dict:
+    payload, mime, filename = _build_export(body)
+    token = uuid.uuid4().hex[:12]
+    _store_export_blob(token, payload, mime, filename)
+    return {"token": token, "filename": filename, "mime": mime, "url": f"/api/export/file/{token}"}
+
+
+class ExportSaveBody(BaseModel):
+    token: str
+    path: str
+
+
+@app.post("/api/export/save")
+def export_save(body: ExportSaveBody) -> dict:
+    safe = "".join(ch for ch in body.token if ch.isalnum())
+    blob = EXPORTS / f"{safe}.bin"
+    if not blob.exists():
+        raise HTTPException(404, "expired")
+    dest = Path(body.path).expanduser()
+    if dest.exists() and dest.is_dir():
+        meta_path = EXPORTS / f"{safe}.meta.json"
+        name = safe
+        if meta_path.exists():
+            name = json.loads(meta_path.read_text(encoding="utf-8")).get("filename") or name
+        dest = dest / name
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(blob.read_bytes())
+    return {"ok": True, "path": str(dest)}
 
 
 @app.get("/api/export/file/{token}")
 def export_file(token: str) -> FileResponse:
     safe = "".join(ch for ch in token if ch.isalnum())
-    meta_path = EXPORTS / f"{safe}.json"
-    blob = None
+    blob = EXPORTS / f"{safe}.bin"
+    meta_path = EXPORTS / f"{safe}.meta.json"
+    if not blob.exists():
+        raise HTTPException(404, "expired")
     mime = "application/octet-stream"
     filename = safe
-    for ext in ("json", "docx", "pdf"):
-        cand = EXPORTS / f"{safe}.{ext}"
-        if cand.exists():
-            blob = cand
-            break
-    if blob is None:
-        raise HTTPException(404, "expired")
     if meta_path.exists():
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
         filename = meta.get("filename") or filename
@@ -410,6 +443,34 @@ def wait_ready(url: str, server_error: list[str], timeout: float = 30.0) -> None
     raise RuntimeError(f"timeout {url}{extra}\n{LOG_FILE}")
 
 
+class DeskBridge:
+    def pick_save(self, filename: str = "export.json") -> str:
+        try:
+            import webview
+        except Exception:
+            return ""
+        if not webview.windows:
+            return ""
+        name = filename or "export.json"
+        ext = Path(name).suffix.lower()
+        if ext == ".json":
+            types = ("JSON (*.json)", "All files (*.*)")
+        elif ext == ".pdf":
+            types = ("PDF (*.pdf)", "All files (*.*)")
+        elif ext == ".docx":
+            types = ("Word (*.docx)", "All files (*.*)")
+        else:
+            types = ("All files (*.*)",)
+        result = webview.windows[0].create_file_dialog(
+            webview.SAVE_DIALOG,
+            save_filename=name,
+            file_types=types,
+        )
+        if not result:
+            return ""
+        return result if isinstance(result, str) else result[0]
+
+
 def run_desktop() -> None:
     import threading
     import traceback
@@ -444,6 +505,7 @@ def run_desktop() -> None:
             height=960,
             min_size=(980, 700),
             background_color="#0b0d12",
+            js_api=DeskBridge(),
         )
 
         def paint_chrome(_=None) -> None:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.0"
 PRODUCT_ZH = "框架策划台"
 PRODUCT_EN = "Framework Brief Desk"
 
@@ -687,6 +687,9 @@ UI = {
     "importClose": L("关闭", "Close"),
     "importOk": L("导入成功，已写入当前项目", "Import complete. Values written to this project."),
     "importBadFile": L("无法读取该文件，请选择 UTF-8 JSON。", "The file could not be read. Choose UTF-8 JSON."),
+    "exportSaved": L("已保存到所选路径", "Saved to the chosen path"),
+    "exportCancel": L("已取消导出", "Export cancelled"),
+    "exportFail": L("导出失败", "Export failed"),
     "addOption": L("添加品类", "Add option"),
     "addPrompt": L("输入自定义品类名称", "Enter a custom option name"),
     "addCancel": L("取消", "Cancel"),

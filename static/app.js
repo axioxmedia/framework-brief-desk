@@ -420,6 +420,42 @@ async function ensureProject() {
   data = Object.assign({}, doc.data || {}, data);
 }
 
+function toast(text, ok) {
+  const chip = document.getElementById("saveChip");
+  chip.textContent = text;
+  chip.classList.toggle("ok", !!ok);
+}
+
+async function pickSavePath(filename) {
+  try {
+    if (window.pywebview && window.pywebview.api && window.pywebview.api.pick_save) {
+      const path = await window.pywebview.api.pick_save(filename);
+      return path || "";
+    }
+  } catch (err) {
+    /* fall through */
+  }
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+      });
+      return handle;
+    } catch (err) {
+      if (err && err.name === "AbortError") return "";
+    }
+  }
+  return null;
+}
+
+async function writePickedHandle(handle, token) {
+  const fileRes = await fetch("/api/export/file/" + token);
+  const blob = await fileRes.blob();
+  const writable = await handle.createWritable();
+  await writable.write(blob);
+  await writable.close();
+}
+
 async function doExport(scope, format) {
   await persist();
   const step = stepAt(currentStep);
@@ -439,10 +475,46 @@ async function doExport(scope, format) {
       }),
     });
     const out = await res.json();
+    if (!res.ok || !out.token) {
+      toast(ui("exportFail"), false);
+      return;
+    }
+    const picked = await pickSavePath(out.filename);
+    if (picked === "") {
+      toast(ui("exportCancel"), false);
+      return;
+    }
+    if (typeof picked === "string") {
+      const saved = await fetch("/api/export/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: out.token, path: picked }),
+      });
+      if (!saved.ok) {
+        toast(ui("exportFail"), false);
+        return;
+      }
+      toast(ui("exportSaved"), true);
+      return;
+    }
+    if (picked && typeof picked.createWritable === "function") {
+      await writePickedHandle(picked, out.token);
+      toast(ui("exportSaved"), true);
+      return;
+    }
+    const fileRes = await fetch(out.url);
+    const blob = await fileRes.blob();
+    const objectUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = out.url;
+    a.href = objectUrl;
     a.download = out.filename;
+    document.body.appendChild(a);
     a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 2000);
+    toast(ui("exportSaved"), true);
+  } catch (err) {
+    toast(ui("exportFail"), false);
   } finally {
     document.getElementById("loading").classList.remove("on");
   }
