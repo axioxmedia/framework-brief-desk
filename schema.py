@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.3.2"
 PRODUCT_ZH = "框架策划台"
 PRODUCT_EN = "Framework Brief Desk"
 
